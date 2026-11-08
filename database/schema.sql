@@ -1,0 +1,30 @@
+CREATE TABLE IF NOT EXISTS requests (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ email VARCHAR(254) NOT NULL,
+ sku VARCHAR(191) NOT NULL,
+ status ENUM('pending','queued','notified') NOT NULL DEFAULT 'pending',
+ notified_at DATETIME NULL,
+ created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ open_slot TINYINT GENERATED ALWAYS AS (CASE WHEN status IN ('pending','queued') THEN 1 ELSE NULL END) STORED,
+ UNIQUE KEY uniq_open (email,sku,open_slot),
+ KEY sku_status (sku,status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS webhook_events (
+ event_id VARCHAR(191) PRIMARY KEY,
+ sku VARCHAR(191) NOT NULL,
+ created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS outbox (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ request_id BIGINT UNSIGNED NOT NULL,
+ status ENUM('pending','sending','sent') NOT NULL DEFAULT 'pending',
+ attempts INT UNSIGNED NOT NULL DEFAULT 0,
+ locked_at DATETIME NULL,
+ sent_at DATETIME NULL,
+ last_error TEXT NULL,
+ created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ UNIQUE KEY uniq_request (request_id),
+ KEY status_idx (status,locked_at),
+ CONSTRAINT fk_outbox_request FOREIGN KEY (request_id) REFERENCES requests(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
